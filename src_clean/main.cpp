@@ -124,6 +124,13 @@ Variables Initialize(void) //for pybind
     if(Comp_for_DNN_Model[i].UseDNNforHostGuest)
     {
       //###PATCH_LCLIN_MAIN_READMODEL###//
+      if(Comp_for_DNN_Model[i].UseMACE)
+      {
+        // Note: At this point Box[i] is not yet set up. We need Cell from somewhere else.
+        // Actually, we need to defer this initialization until Box is ready.
+        // For now, let's skip this and do it later in the initialization flow.
+        // Mark for initialization later
+      }
       //###PATCH_ALLEGRO_MAIN_READMODEL###//
     }
   }
@@ -191,10 +198,11 @@ Variables Initialize(void) //for pybind
     //Zhao's note: different systems will share the SAME components (for adsorbate), only read it once//
       Vars.TempComponents.UseDNNforHostGuest = Comp_for_DNN_Model[a].UseDNNforHostGuest;
       Vars.TempComponents.UseAllegro         = Comp_for_DNN_Model[a].UseAllegro;
+      Vars.TempComponents.UseMACE            = Comp_for_DNN_Model[a].UseMACE;
       Vars.TempComponents.UseLCLin           = Comp_for_DNN_Model[a].UseLCLin;
       Vars.TempComponents.DNNEnergyConversion= Comp_for_DNN_Model[a].DNNEnergyConversion;
       if(Vars.TempComponents.UseDNNforHostGuest)
-        if(static_cast<int>(Vars.TempComponents.UseLCLin) + static_cast<int>(Vars.TempComponents.UseAllegro)/* + static_cast<int>(Vars.TempComponents.UseDylan)*/ > 1)
+        if(static_cast<int>(Vars.TempComponents.UseLCLin) + static_cast<int>(Vars.TempComponents.UseAllegro) + static_cast<int>(Vars.TempComponents.UseMACE) > 1)
           throw std::runtime_error("Currently do not support using more than 1 ML model in gRASPA! Please just use 1 (or none)!!!");
 
       for(size_t comp = 0; comp < Vars.TempComponents.NComponents.x; comp++)
@@ -320,6 +328,31 @@ Variables Initialize(void) //for pybind
       }
       //Test reading Tensorflow model//
       //###PATCH_LCLIN_MAIN_PREP###//
+      if(Vars.SystemComponents[a].UseMACE)
+      {
+         // Initialize MACE Model
+         Vars.SystemComponents[a].MACEModel.UCAtoms.resize(Vars.SystemComponents[a].NComponents.x);
+         Vars.SystemComponents[a].MACEModel.ReplicaAtoms.resize(Vars.SystemComponents[a].NComponents.x);
+         Vars.SystemComponents[a].MACEModel.NReplicacell = {3,3,3};
+         // NOW Box is initialized, we can use it
+         Vars.SystemComponents[a].MACEModel.GenerateUCBox(Vars.Box[a].Cell, Vars.SystemComponents[a].NumberofUnitCells);
+         
+         // Copy Framework atoms
+         Vars.SystemComponents[a].MACEModel.CopyAtomsFromFirstUnitcell(Vars.SystemComponents[a].HostSystem[0], 0, Vars.SystemComponents[a].NumberofUnitCells, Vars.SystemComponents[a].PseudoAtoms, NULL);
+         
+         // Load Model
+         Vars.SystemComponents[a].MACEModel.ReadModel(Vars.SystemComponents[a].ModelName[0]);
+         Vars.SystemComponents[a].MACEModel.Match_Element_PseudoAtom_with_model(Vars.SystemComponents[a].PseudoAtoms);
+         
+         // Copy adsorbate atoms setup
+         size_t comp = 1; 
+         Vars.SystemComponents[a].MACEModel.CopyAtomsFromFirstUnitcell(Vars.SystemComponents[a].HostSystem[comp], comp, Vars.SystemComponents[a].NumberofUnitCells, Vars.SystemComponents[a].PseudoAtoms, Vars.SystemComponents[a].ConsiderThisAdsorbateAtom);
+         
+         // Generate Replicas and Initial Neighbor List
+         Vars.SystemComponents[a].MACEModel.GenerateReplicaCells(true);
+         Vars.SystemComponents[a].MACEModel.Get_Neighbor_List_Replica(true);
+         printf("MACE initialization complete!\n");
+      }
       //###PATCH_ALLEGRO_MAIN_PREP###//
     }
     //Prepare detailed Identity Swap statistics if there are more than 1 component//

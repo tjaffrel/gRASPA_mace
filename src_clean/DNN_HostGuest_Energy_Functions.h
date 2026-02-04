@@ -174,6 +174,35 @@ double DNN_Prediction_Move(Components& SystemComponents, Simulations& Sims, size
   case INSERTION:
   {
     double DNN_New = 0.0;
+    if(SystemComponents.UseMACE)
+    {
+      // For MACE: Copy New trial position to MACEModel and predict
+      // For INSERTION, the trial molecule is in Sims.New (not Sims.Old)
+      size_t chainsize = SystemComponents.Moleculesize[SelectedComponent];
+      
+      // Guard: Skip if Sims.New is not populated yet
+      if(Sims.New.size == 0 || Sims.New.pos == nullptr) {
+        return 0.0;
+      }
+      
+      // Set adsorbate positions and types from Sims.New (trial insertion positions)
+      size_t update_idx = 0;
+      for(size_t i=0; i<chainsize && i<Sims.New.size; i++)
+      {
+         bool consider = SystemComponents.ConsiderThisAdsorbateAtom[i];
+         if(consider) {
+           double3 pos = Sims.New.pos[i];
+           size_t type = Sims.New.Type[i];
+           SystemComponents.MACEModel.UCAtoms[1].pos[update_idx] = pos;
+           SystemComponents.MACEModel.UCAtoms[1].Type[update_idx] = type;
+           update_idx++;
+         }
+      }
+      
+      if(update_idx > 0) {
+        DNN_New = SystemComponents.MACEModel.MCEnergyWrapper(1, false, SystemComponents.DNNEnergyConversion);
+      }
+    }
     //###PATCH_ALLEGRO_INSERTION###//
     //###PATCH_LCLIN_INSERTION###//
     return DNN_New;
@@ -181,6 +210,16 @@ double DNN_Prediction_Move(Components& SystemComponents, Simulations& Sims, size
   case DELETION:
   {
     double DNN_New = 0.0;
+    if(SystemComponents.UseMACE)
+    {
+      // For MACE: Deletion means energy without the molecule? Or is it already handled?
+      // Actually, for Deletion, we want energy of system without the molecule.
+      // This might be Framework-only energy. 
+      // If molecule is deleted, the UC atoms for adsorbate should be empty or not contribute.
+      // Let's assume we set adsorbate size to 0 temporarily or skip.
+      // For now, return 0 as placeholder (needs careful thought).
+      DNN_New = 0.0; // FIXME: Implement correctly
+    }
     //###PATCH_ALLEGRO_DELETION###//
     //###PATCH_LCLIN_DELETION###//
     return DNN_New;
@@ -188,6 +227,14 @@ double DNN_Prediction_Move(Components& SystemComponents, Simulations& Sims, size
   case TRANSLATION: case ROTATION: case SINGLE_INSERTION: case SINGLE_DELETION:
   {
     double DNN_New = 0.0; double DNN_Old = 0.0;
+    if(SystemComponents.UseMACE)
+    {
+      // For single particle moves: Calculate energy difference
+      // Sims.Old contains old and new positions for comparison
+      // This requires two predictions or careful handling
+      // Placeholder for now
+      DNN_New = 0.0; DNN_Old = 0.0; // FIXME
+    }
     //###PATCH_ALLEGRO_SINGLE###//
     //###PATCH_LCLIN_SINGLE###//
     return DNN_New - DNN_Old;

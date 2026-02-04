@@ -3092,6 +3092,10 @@ void ReadDNNModelSetup(Components& SystemComponents)
         //printf("Found Allegro\n");
         SystemComponents.UseAllegro = true; foundMethod = true;
       }
+      else if(caseInSensStringCompare(termsScannedLined[1], "MACE"))
+      {
+        SystemComponents.UseMACE = true; foundMethod = true;
+      }
       else if(caseInSensStringCompare(termsScannedLined[1], "LCLin"))
       {
         //printf("Found LCLin\n");
@@ -3115,9 +3119,26 @@ void ReadDNNModelSetup(Components& SystemComponents)
       else
       {throw std::runtime_error("Unknown Energy Unit for DNN Model");}
     }
+    // Read model file name for Allegro or MACE
+    if (str.find("DNNModelName", 0) != std::string::npos)
+    {
+      Split_Tab_Space(termsScannedLined, str);
+      SystemComponents.ModelName.push_back(termsScannedLined[1]);
+      printf("DNN Model Name: %s\n", termsScannedLined[1].c_str());
+    }
+    // Read maximum DNN energy drift tolerance
+    if (str.find("MaxDNNDrift", 0) != std::string::npos)
+    {
+      Split_Tab_Space(termsScannedLined, str);
+      SystemComponents.DNNDrift = std::stod(termsScannedLined[1]);
+    }
   }
   if(SystemComponents.UseDNNforHostGuest && !DNNUnitFound)
     throw std::runtime_error("You are using DNN models but there is no ENERGY UNIT specified!!!!");
+  
+  // For MACE and Allegro, model name is required
+  if((SystemComponents.UseAllegro || SystemComponents.UseMACE) && SystemComponents.ModelName.empty())
+    throw std::runtime_error("DNNModelName not found in simulation.input! Required for Allegro/MACE.");
 
   if(SystemComponents.UseAllegro && SystemComponents.UseLCLin)
     throw std::runtime_error("CANNOT USE Li-Chiang Lin's and Allegro at the same time!!!!");

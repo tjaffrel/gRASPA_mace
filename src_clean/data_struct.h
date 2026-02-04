@@ -1,3 +1,6 @@
+#ifndef DATA_STRUCT_H
+#define DATA_STRUCT_H
+
 #include <filesystem>
 
 #include <stdio.h>
@@ -880,6 +883,8 @@ struct Boxsize
   bool     UseLAMMPSEwald = false;
   int3     kmax;
 };
+#include "torch_allegro.h"
+#include "torch_mace.h"
 //###PATCH_ALLEGRO_H###//
 
 struct CBMC_Variables
@@ -1116,7 +1121,9 @@ struct Components
   double DNNEnergyConversion;
   bool UseAllegro = false;
   bool UseLCLin = false;
+  bool UseMACE = false;
   //###PATCH_ALLEGRO_VARIABLES###//
+  MACE MACEModel;
 
   //###PATCH_LCLIN_VARIABLES###//
   std::vector<std::string>ModelName;                  // Name (folder) of the stored model
@@ -1432,3 +1439,4 @@ py::list Convert_Pointer_To_PyList(size_t size, T* point)
   return temp;
 }
 */
+#endif // DATA_STRUCT_H

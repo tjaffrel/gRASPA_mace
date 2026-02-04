@@ -1,3 +1,8 @@
+#ifndef TORCH_ALLEGRO_H
+#define TORCH_ALLEGRO_H
+
+#include <torch/script.h>
+#include <unordered_map>
 struct Allegro
 {
   std::string ModelName;
@@ -592,3 +597,4 @@ struct Allegro
   }
   */
 };
+#endif // TORCH_ALLEGRO_H
